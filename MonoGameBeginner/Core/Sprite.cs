@@ -10,6 +10,8 @@ public class Sprite
     private Vector2 _origin;
     public Vector2 Origin => _origin;
     private Color _tint;
+    private Vector2 _position;
+    public Vector2 Position => _position;
     public Color Tint => _tint;
     
 
@@ -22,6 +24,7 @@ public class Sprite
 
     public void Draw(SpriteBatch spriteBatch, Vector2 position, Vector2 scale)
     {
+        _position = position;
         spriteBatch.Draw(
             _texture,
             position,
