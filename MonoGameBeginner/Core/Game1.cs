@@ -7,11 +7,13 @@ namespace Core;
 
 public class Game1 : Game
 {
+    #region Properties
     // Design Levers
     private readonly float _horizontalOffsetDivisor = 5f;
     private readonly Vector2 _shootChoiceSpriteScale = Vector2.One * 6;
-    private Color _playerColor = new (77,155,230);
-    private Color _aiColor = Color.OrangeRed;
+    private readonly Color _playerColor = new (77,155,230);
+    private readonly Color _aiColor = Color.OrangeRed;
+    private SpriteFont _defaultFont;
     
     private readonly GraphicsDeviceManager _graphics;
     private SpriteBatch _spriteBatch;
@@ -32,7 +34,6 @@ public class Game1 : Game
     private Sprite _winSprite;
     private Sprite _loseSprite;
     private Sprite _tieSprite;
-    
 
     private Sprite _oneSprite;
     private Sprite _twoSprite;
@@ -45,13 +46,25 @@ public class Game1 : Game
     private Sprite _paperSprite;
     private Sprite _scissorsSprite;
     private Sprite _frameSprite;
+    
+    private Texture2D _blankTexture;
+    
     private ShootChoice _playerShootChoice;
     private Vector2 _countDownSpriteOrigin;
     private ShootChoice _aiShootChoice = ShootChoice.Undecided;
 
-    private bool _isWaiting = false;
+    private bool _isWaiting = true;
+    
+    private string _matchResultText = "";
+    private string _playerScoreString = "";
+    private string _aiScoreString = "";
+    private Vector2 _playerMatchScoreOrigin;
+    private Vector2 _aiMatchScoreOrigin;
 
+    
 
+    #endregion
+    
     #region Game Loop
     public Game1()
     {
@@ -66,12 +79,10 @@ public class Game1 : Game
     {
         base.Initialize();
         _spriteBatch = new SpriteBatch(GraphicsDevice);
+        _defaultFont = Content.Load<SpriteFont>("default");
         _rps.CreateSprites(Content);
-        var frameTexture = Content.Load<Texture2D>("img/frame");
-        _frameSprite = new Sprite(frameTexture);
         SetUpScene();
-        DisplayInputArea();
-        _rps.StartCountDown();
+        Reset();
     }
 
     protected override void Update(GameTime gameTime)
@@ -80,12 +91,16 @@ public class Game1 : Game
         HandleInput();
         DisplayInputArea();
         DisplayChoices(_playerShootChoice, _aiShootChoice);
+        DisplayMatchScore(_rps.GetPlayerScore(), _rps.GetAiScore());
         DisplayOutcome();
+        DisplayGameOver(playerWon: _rps.PlayerWon);
         _rps.Update(gameTime);
 
         if (!_isWaiting)
         {
-            _outcomeSprite = null;
+            _currentCountdownSprite.SetVisible(true);
+            _outcomeSprite?.SetVisible(false);
+            _matchResultText = String.Empty;
             if (_rps.GetCountDownRemaining() >= 3)
                 _currentCountdownSprite = _readySprite;
             else if (_rps.GetCountDownRemaining() > 2)
@@ -103,13 +118,15 @@ public class Game1 : Game
             }
             else
             {
-                _currentCountdownSprite = null;
+                _currentCountdownSprite.SetVisible(false);
             }
+        }
+        else
+        {
+            _outcomeSprite?.SetVisible(true);
         }
         
     }
-
-    
 
     protected override void Draw(GameTime gameTime)
     {
@@ -117,39 +134,44 @@ public class Game1 : Game
         base.Draw(gameTime);
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
 
-        _playerChoice?.Draw(_spriteBatch, _playerShootOrigin, _shootChoiceSpriteScale);
+        _playerChoice?.Draw(_spriteBatch, _shootChoiceSpriteScale);
         if(_playerChoice != null)
-            _aiChoice.Draw(_spriteBatch, _aiShootOrigin, _shootChoiceSpriteScale);
-        _outcomeSprite?.Draw(_spriteBatch, _outcomeSpriteOrigin, _shootChoiceSpriteScale);
+            _aiChoice.Draw(_spriteBatch, _shootChoiceSpriteScale);
+        _outcomeSprite?.Draw(_spriteBatch, _shootChoiceSpriteScale);
 
 
-        _rockSprite.Draw(_spriteBatch, _playerChoiceInputOrigin - new Vector2(_graphics.PreferredBackBufferHeight / 4, 0), _shootChoiceSpriteScale / 2f);
-        _paperSprite.Draw(_spriteBatch, _playerChoiceInputOrigin, _shootChoiceSpriteScale / 2f);
-        _scissorsSprite.Draw(_spriteBatch, _playerChoiceInputOrigin + new Vector2(_graphics.PreferredBackBufferHeight / 4, 0), _shootChoiceSpriteScale / 2f);
-        _frameSprite.Draw(_spriteBatch, _frameOrigin, _shootChoiceSpriteScale / 2f);
+        _rockSprite.Draw(_spriteBatch, _shootChoiceSpriteScale / 2f);
+        _paperSprite.Draw(_spriteBatch, _shootChoiceSpriteScale / 2f);
+        _scissorsSprite.Draw(_spriteBatch, _shootChoiceSpriteScale / 2f);
+        _frameSprite.Draw(_spriteBatch, _shootChoiceSpriteScale / 2f);
 
-        _currentCountdownSprite?.Draw(_spriteBatch, _countDownSpriteOrigin, _shootChoiceSpriteScale);
+        _currentCountdownSprite?.Draw(_spriteBatch, _shootChoiceSpriteScale);
+
+        _spriteBatch.DrawString(_defaultFont, _playerScoreString, _playerMatchScoreOrigin, _playerColor);
+        _spriteBatch.DrawString(_defaultFont, _aiScoreString, _aiMatchScoreOrigin, _aiColor);
+        _spriteBatch.DrawString(_defaultFont, _matchResultText, _countDownSpriteOrigin, Color.White);
 
         _spriteBatch.End();
     }
     #endregion
-    
+
     private void HandleInput()
     {
-        if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed ||
-            Keyboard.GetState().IsKeyDown(Keys.Escape))
+        Keyboard.Refresh();
+        Mouse.Refresh();
+        if (Keyboard.IsPressed(Keys.Escape))
             Exit();
 
         if (!_isWaiting)
         {
-            if (Mouse.GetState().LeftButton == ButtonState.Pressed)
+            if (Mouse.LeftButtonPressed())
                 _outcome = Shoot(_playerShootChoice);
-            if (Mouse.GetState().X < _paperSprite.Position.X - 50)
+            if (Mouse.X < _paperSprite.Position.X - 50)
             {
                 _frameOrigin = _rockSprite.Position;
                 _playerShootChoice = ShootChoice.Rock;
             }
-            else if (Mouse.GetState().X > _paperSprite.Position.X + 50)
+            else if (Mouse.X > _paperSprite.Position.X + 50)
             {
                 _frameOrigin = _scissorsSprite.Position;
                 _playerShootChoice = ShootChoice.Scissors;
@@ -162,22 +184,25 @@ public class Game1 : Game
         }
         else
         {
-            if (Mouse.GetState().LeftButton == ButtonState.Pressed)
+            if (Mouse.LeftButtonPressed())
             {
                 Reset();
-                
             }
         }
     }
 
     private void Reset()
     {
-        _outcomeSprite = null;
         _outcome = ShootResult.Pending;
         _aiShootChoice = ShootChoice.Undecided;
         _playerShootChoice = ShootChoice.Undecided;
+        if(_rps.PlayerWon != null)
+            _rps.NewGame();
+        _rps.Reset();
         _rps.StartCountDown();
         _isWaiting = false;
+        
+    
     }
 
     private void SetUpScene()
@@ -186,56 +211,91 @@ public class Game1 : Game
         var offsetFromCenter = new Vector2(_graphics.PreferredBackBufferWidth / _horizontalOffsetDivisor, 0f);
         _playerShootOrigin = screenCenter - offsetFromCenter;
         _aiShootOrigin = screenCenter + offsetFromCenter;
-        _outcomeSpriteOrigin = screenCenter - new Vector2(0, _graphics.PreferredBackBufferHeight / 6);
+        _outcomeSpriteOrigin = screenCenter - new Vector2(0, _graphics.PreferredBackBufferHeight / 6f);
         _countDownSpriteOrigin = _outcomeSpriteOrigin - new Vector2(0, _graphics.PreferredBackBufferHeight / 8);
         _playerChoiceInputOrigin = screenCenter + new Vector2(0, _graphics.PreferredBackBufferWidth / 6);
+        
+        var frameTexture = Content.Load<Texture2D>("img/frame");
+        _frameSprite = new Sprite(frameTexture);
 
         var winTexture = Content.Load<Texture2D>("img/win");
-        var loseTexture = Content.Load<Texture2D>("img/lose");
-        var tieTexture = Content.Load<Texture2D>("img/tie");
-
         _winSprite = new Sprite(winTexture);
         _winSprite.SetTint(Color.Green);
+        _winSprite.SetPosition(_outcomeSpriteOrigin);
+        
+        var loseTexture = Content.Load<Texture2D>("img/lose");
         _loseSprite = new Sprite(loseTexture);
-        _loseSprite.SetTint(Color.Red);
+        _loseSprite.SetTint(_aiColor);
+        _loseSprite.SetPosition(_outcomeSpriteOrigin);
+        
+        var tieTexture = Content.Load<Texture2D>("img/tie");
         _tieSprite = new Sprite(tieTexture);
         _tieSprite.SetTint(Color.Yellow);
+        _tieSprite.SetPosition(_outcomeSpriteOrigin);
 
         var oneTexture = Content.Load<Texture2D>("img/1");
-        var twoTexture = Content.Load<Texture2D>("img/2");
-        var threeTexture = Content.Load<Texture2D>("img/3");
-        var shootTexture = Content.Load<Texture2D>("img/shoot");
-        var readyTexture = Content.Load<Texture2D>("img/ready");
-
         _oneSprite = new Sprite(oneTexture);
-        _twoSprite = new Sprite(twoTexture);
-        _threeSprite = new Sprite(threeTexture);
-        _shootSprite = new Sprite(shootTexture);
-        _readySprite = new Sprite(readyTexture);
+        _oneSprite.SetPosition(_countDownSpriteOrigin);
 
+        var twoTexture = Content.Load<Texture2D>("img/2");
+        _twoSprite = new Sprite(twoTexture);
+        _twoSprite.SetPosition(_countDownSpriteOrigin);
         
+        var threeTexture = Content.Load<Texture2D>("img/3");
+        _threeSprite = new Sprite(threeTexture);
+        _threeSprite.SetPosition(_countDownSpriteOrigin);
+        
+        var shootTexture = Content.Load<Texture2D>("img/shoot");
+        _shootSprite = new Sprite(shootTexture);
+        _shootSprite.SetPosition(_countDownSpriteOrigin);
+        
+        var readyTexture = Content.Load<Texture2D>("img/ready");
+        _readySprite = new Sprite(readyTexture);
+        
+        _currentCountdownSprite = _readySprite;
+        _currentCountdownSprite.SetPosition(_countDownSpriteOrigin);
+
+        _blankTexture = new Texture2D(GraphicsDevice,1,1); // TODO: This is ugly
+        _outcomeSprite = new Sprite(_blankTexture); 
+        _outcomeSprite.SetPosition(_outcomeSpriteOrigin);
+        
+        _rockSprite = _rps.GetSprite(ShootChoice.Rock);
+        _rockSprite.SetPosition(_playerChoiceInputOrigin - new Vector2(_graphics.PreferredBackBufferHeight / 4, 0));
+        
+        _paperSprite = _rps.GetSprite(ShootChoice.Paper);
+        _paperSprite.SetPosition(_playerChoiceInputOrigin);
+        
+        _scissorsSprite = _rps.GetSprite(ShootChoice.Scissors);
+        _scissorsSprite.SetPosition(_playerChoiceInputOrigin + new Vector2(_graphics.PreferredBackBufferHeight / 4, 0));
+
+        _playerChoice = _rps.ChoiceToSprite(ShootChoice.Undecided);
+        _aiChoice = _rps.ChoiceToSprite(ShootChoice.Undecided);
+
+        _playerMatchScoreOrigin = new Vector2(16, 16);
+        _aiMatchScoreOrigin = new Vector2(_graphics.PreferredBackBufferWidth - (16 * 12), 16);
+
     }
     private ShootResult Shoot(ShootChoice playerChoice)
     {
         _playerShootChoice = _rps.PlayerShoot(playerChoice);
         
-        return _rps.Play(_playerShootChoice, _aiShootChoice);
+        var result = _rps.Play(_playerShootChoice, _aiShootChoice);
+        return result;
     }
 
     private void DisplayChoices(ShootChoice playerShoot, ShootChoice aiShoot)
     {
         _playerChoice = _rps.ChoiceToSprite(playerShoot);
         _playerChoice.SetTint(_playerColor);
+        _playerChoice.SetPosition( _playerShootOrigin);
         _aiChoice = _rps.ChoiceToSprite(aiShoot);
         _aiChoice.SetTint(_aiColor);
+        _aiChoice.SetPosition(_aiShootOrigin);
     }
 
     private void DisplayInputArea()
     {
-        _rockSprite = _rps.GetSprite(ShootChoice.Rock);
-        _paperSprite = _rps.GetSprite(ShootChoice.Paper);
-        _scissorsSprite = _rps.GetSprite(ShootChoice.Scissors);
-        
+        _frameSprite.SetPosition(_frameOrigin);
     }
     
     private void DisplayOutcome()
@@ -258,7 +318,37 @@ public class Game1 : Game
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+            
+             _currentCountdownSprite.SetVisible(false);
         }
+
+    }
+    
+    private void DisplayMatchScore(int playerScore, int aiScore)
+    {
+        _playerScoreString = $"Player:{playerScore}";
+        _aiScoreString = $"Opponent: {aiScore}";
+    }
+
+    private void DisplayGameOver(bool? playerWon)
+    {
+        if (playerWon == null)
+        {
+            _matchResultText = "";
+        }
+        else
+        {
+            _outcomeSprite = null;
+            _currentCountdownSprite.SetVisible(false);
+
+            _matchResultText = playerWon == true ?
+                "You won the match!" + "\n" +
+                $"You Won {_rps.GetPlayerScore()} / {RpsGameManager.BestOfRounds} Rounds." 
+                : "You lost the match. Bummer." + "\n" +
+                  $"You Won {_rps.GetPlayerScore()} / {RpsGameManager.BestOfRounds} Rounds.";
+        }
+        
+
 
     }
 }
