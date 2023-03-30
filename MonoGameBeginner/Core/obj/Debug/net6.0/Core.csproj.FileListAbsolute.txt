@@ -22,3 +22,4 @@
 /run/media/mmcblk0p1/repos/monogame-beginner-tutorial/MonoGameBeginner/Core/bin/Debug/net6.0/Content/img/3.xnb
 /run/media/mmcblk0p1/repos/monogame-beginner-tutorial/MonoGameBeginner/Core/bin/Debug/net6.0/Content/img/shoot.xnb
 /run/media/mmcblk0p1/repos/monogame-beginner-tutorial/MonoGameBeginner/Core/bin/Debug/net6.0/Content/img/ready.xnb
+/run/media/mmcblk0p1/repos/monogame-beginner-tutorial/MonoGameBeginner/Core/bin/Debug/net6.0/Content/default.xnb

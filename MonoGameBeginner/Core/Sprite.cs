@@ -11,6 +11,7 @@ public class Sprite
     public Vector2 Origin => _origin;
     private Color _tint;
     private Vector2 _position;
+    private bool _visible = true;
     public Vector2 Position => _position;
     public Color Tint => _tint;
     
@@ -22,24 +23,37 @@ public class Sprite
         _origin = new Vector2(texture.Width / 2, texture.Height / 2);
     }
 
-    public void Draw(SpriteBatch spriteBatch, Vector2 position, Vector2 scale)
+    public void Draw(SpriteBatch spriteBatch, Vector2 scale)
     {
-        _position = position;
-        spriteBatch.Draw(
-            _texture,
-            position,
-            null,
-            _tint,
-            0f,
-            _origin,
-            scale, 
-            SpriteEffects.None,
-            0f);
+        if (_visible)
+        {
+            spriteBatch.Draw(
+                _texture,
+                _position,
+                null,
+                _tint,
+                0f,
+                _origin,
+                scale, 
+                SpriteEffects.None,
+                0f);    
+        }
+        
+    }
+
+    public void SetPosition(Vector2 pos)
+    {
+        _position = pos;
     }
 
 
     public void SetTint(Color color)
     {
         _tint = color;
+    }
+
+    public void SetVisible(bool value)
+    {
+        _visible = value;
     }
 }

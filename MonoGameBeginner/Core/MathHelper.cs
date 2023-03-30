@@ -1,5 +1,4 @@
 using System;
-using System.Security.Cryptography;
 
 namespace Core;
 
@@ -9,7 +8,7 @@ public static class MathHelper
     
     public static float MilesToFeet(float miles)
     {
-        return miles / FeetInMiles;
+        return miles * FeetInMiles;
     }
 
     public static float TotalSeconds(int hours, int minutes, int seconds)
